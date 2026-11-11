@@ -1,0 +1,69 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>HWSS shim test</title>
+<pre id="out">running...</pre>
+<script>
+  // Fake bridge, like the preload's contextBridge object.
+  window.__steamCalls = [];
+  window.hwNative = { steam: { call: function (m) { __steamCalls.push(m); return Promise.resolve(m === 'getStat' ? 5 : 'REAL:' + m); } } };
+</script>
+<script src="../../mod/hwss.js"></script>
+<script>
+(async function () {
+  const R = [], ok = (name, cond, extra) => R.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + extra : ''));
+  const HW = window.__HWSS__, V = HW.verdict;
+  const T = 'https://totaljerkface.com';
+
+  // classification only (no requests sent)
+  ok('GET level download allowed', V('GET', T + '/get_level.hw?level_id=123') === null);
+  ok('GET local game file allowed', V('GET', T + '/__hw_app__/js/index.js') === null);
+  ok('GET submit blocked', !!V('GET', T + '/replay.hw?action=submit_replay'));
+  ok('GET score blocked', !!V('GET', T + '/x.hw?score=99'));
+  ok('POST blocked', !!V('POST', T + '/replay.hw', 'action=get_record&x=1'));
+  ok('POST beta subdomain blocked', !!V('POST', 'https://beta.totaljerkface.com/level.hw', 'action=rate'));
+  ok('PUT blocked', !!V('PUT', T + '/x'));
+  ok('Sentry blocked', !!V('POST', 'https://o123.ingest.sentry.io/api/1/envelope/'));
+  ok('other host GET untouched', V('GET', 'https://example.com/') === null);
+
+  // real calls that must be blocked before leaving the page
+  let e1 = null; try { await fetch(T + '/replay.hw', { method: 'POST', body: 'action=submit_replay&score=1' }); } catch (e) { e1 = e; }
+  ok('fetch POST rejected like offline', e1 instanceof TypeError, String(e1));
+  let e2 = null; try { await fetch(new Request(T + '/score.hw', { method: 'POST', body: 'a=1' })); } catch (e) { e2 = e; }
+  ok('fetch(Request) POST rejected', e2 instanceof TypeError);
+  const xr = await new Promise(res => { const x = new XMLHttpRequest(); x.open('POST', T + '/replay.hw'); x.onerror = () => res('error'); x.onload = () => res('load'); x.send('action=submit'); setTimeout(() => res('timeout'), 2000); });
+  ok('XHR POST fails like offline', xr === 'error', xr);
+  ok('sendBeacon swallowed', navigator.sendBeacon(T + '/beacon', 'x') === true);
+  const ws = new WebSocket('wss://totaljerkface.com/socket');
+  ok('WebSocket redirected', ws.url.indexOf('127.0.0.1:9') >= 0, ws.url);
+  const img = new Image(); img.src = T + '/track.hw?event=post';
+  ok('img ping blocked', img.src === '', img.src);
+
+  // Steam
+  ok('steam hook installed', HW.steamHook === 'mutated' || HW.steamHook === 'shadowed', HW.steamHook);
+  ok('unlockAchievement blocked', (await hwNative.steam.call('unlockAchievement', 'ACH_X')) === false);
+  ok('setStat blocked', (await hwNative.steam.call('setStat', 'deaths', 10)) === true);
+  ok('getStat sees fake value', (await hwNative.steam.call('getStat', 'deaths')) === 10);
+  ok('addStat blocked', (await hwNative.steam.call('addStat', 'deaths', 2)) === 12);
+  ok('storeStats blocked', (await hwNative.steam.call('storeStats')) === true);
+  ok('writeProgress blocked', (await hwNative.steam.call('writeProgress', '{}')) === true);
+  ok('getPlayerName passes through', (await hwNative.steam.call('getPlayerName')) === 'REAL:getPlayerName');
+  ok('no write reached real Steam', !__steamCalls.some(m => /unlock|setStat|addStat|store|writeProgress/.test(m)), JSON.stringify(__steamCalls));
+  ok('fetch looks native', /\[native code\]/.test(fetch.toString()), fetch.toString());
+
+  // blocklist mode (user's choice): everything allowed except /replay.hw:create
+  HW.cfg.onlineMode = 'blocklist';
+  HW.session = { hwssCoop: false };
+  ok('BL: solo replay upload allowed', V('POST', T + '/replay.hw', 'action=create&rr=AAAA') === null);
+  HW.session = { hwssCoop: true };
+  ok('BL: co-op replay upload blocked', !!V('POST', T + '/replay.hw', 'action=create&rr=AAAA'));
+  ok('BL: other replay.hw action allowed', V('POST', T + '/replay.hw', 'action=get_replays&level_id=1') === null);
+  ok('BL: "create" on another script allowed', V('POST', T + '/set_level.hw', 'action=create') === null);
+  ok('BL: rating allowed', V('POST', T + '/set_level.hw', 'level_id=1&rating=5&action=rate_level') === null);
+  ok('BL: unknown POST allowed', V('POST', T + '/user.hw', 'action=something_new') === null);
+  ok('BL: Sentry still blocked', !!V('POST', 'https://o1.ingest.sentry.io/api/1/envelope/'));
+  ok('BL: submission-looking GET still blocked', !!V('GET', T + '/x.hw?action=submit_score'));
+  HW.cfg.onlineMode = 'allowlist'; HW.session = null;
+
+  document.getElementById('out').textContent = R.join('\n') + '\n\n' + (R.every(r => r.startsWith('PASS')) ? 'ALL PASS' : 'SOME FAILED');
+})();
+</script>

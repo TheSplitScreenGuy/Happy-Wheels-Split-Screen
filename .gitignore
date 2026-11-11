@@ -1,0 +1,5 @@
+# dev server log + screenshots (tools/devserver.js, tools/hwctl.js)
+logs/
+# built package: upload release/HWSS.zip to a GitHub Release instead of committing it
+release/
+node_modules/
