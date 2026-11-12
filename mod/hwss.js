@@ -41,7 +41,7 @@
     }
   } catch (e) { /* defaults */ }
 
-  var HW = window.__HWSS__ = { cfg: cfg, version: '1.0', blocked: [], log: log };
+  var HW = window.__HWSS__ = { cfg: cfg, version: '1.0.1', blocked: [], log: log };
   // The game's webpack chunk array (self.<name>) differs per build and version (1.99.2: Windows
   // Tmuvm81k91, native Linux Tmuvmbn5d9; 1.99.3: Tmw7x8r033, also on the Steam Deck under Proton). The
   // installers read it from dependencies.js into cfg.chunkGlobal; if that's missing, findChunkName()

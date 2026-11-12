@@ -39,7 +39,8 @@ UNINSTALL
   or Steam > Happy Wheels > Properties > Installed Files > Verify integrity of game files
 
 PLAYING
-  - P1 uses the keyboard or the first controller in Steam's order.
+  - P1 uses the keyboard or the first controller in Steam's order. Tick "P1: Keyboard + Mouse" on the main
+    menu (or press F9) to keep P1 on keyboard + mouse, so every controller can join as P2-P4.
   - Any other controller joins by pressing Start at the main menu (next free player: P2, P3, P4);
     Select+Start leaves. Controllers nobody pressed Start on are ignored.
   - Everyone uses P1's controller buttons (RT/LT, A, LB/RB, B to eject). Start pauses for anyone.
@@ -115,13 +116,14 @@ SETTINGS
                                   the main monitor, the other shows whose screen it is. Also on the main
                                   menu (bottom left). "1" puts the window back (fullscreen again if it was).
 
-  On the main menu: "Player Cursors" (shown when a controller is connected) and "Monitors: 1 / 2".
+  On the main menu: "P1: Keyboard + Mouse" and "Player Cursors" (shown when a controller is connected),
+  and "Monitors: 1 / 2".
 
   Keys:
     F5 / F3 / F4  add / remove a test rider as P2 / P3 / P4 (copies P1's controls with a short delay)
     F6 / F7       test rider P3 / P4 without the delay
     F8            delay P1's own controls by 0.5 s
-    F9            P1 on keyboard + mouse only (every controller can join as P2-P4)
+    F9            P1 on keyboard + mouse only (every controller can join as P2-P4); same as the checkbox
     F10           hand the controller to the next player (P1 > P2 > P3 > P4 > P1)
     F1            auto-ride on / off: everyone rides full throttle with random leaning and A presses
                   (handy for recording videos)

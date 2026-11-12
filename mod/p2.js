@@ -72,7 +72,26 @@
     for (var i = 0; i < pads.length; i++) if (usable(pads[i], pads) && !claimedBy(i) && i !== cfg.p2Pad) return i;
     return null;
   }
-  PL.p1Keyboard = false;
+  // P1 on keyboard + mouse only (every controller can join as P2-P4): saved choice (F9 / main-menu checkbox).
+  // F10 also switches it while it passes the controller around, without saving.
+  var P1KB_KEY = 'hwss.p1Keyboard';
+  PL.p1Keyboard = (function () { try { return window.localStorage.getItem(P1KB_KEY) === 'on'; } catch (e) { return false; } })();
+  PL.setP1Keyboard = function (on) {
+    PL.p1Keyboard = !!on;
+    try { window.localStorage.setItem(P1KB_KEY, PL.p1Keyboard ? 'on' : 'off'); } catch (e) {}
+    log('p2', 'P1 ' + (PL.p1Keyboard ? 'keyboard + mouse only (controllers can join as P2-P4)' : 'uses the first controller again'));
+    return PL.p1Keyboard;
+  };
+  // The game pauses when it hears "gamepaddisconnected" for a controller it recognises. A disconnect of a
+  // controller that ISN'T P1's (Steam's virtual pads can drop and come back when another controller wakes;
+  // a player's controller turning off) paused everyone, e.g. P2 pressing a trigger in keyboard mode
+  // (TheSplitScreenGuy's report). Such events are kept from the game; P1's own controller still pauses it.
+  window.addEventListener('gamepaddisconnected', function (e) {
+    var g = e.gamepad;
+    if (!g || (!PL.p1Keyboard && g.index === PL.p1Pad)) return;
+    e.stopImmediatePropagation();
+    log('p2', 'controller ' + g.index + ' disconnected (not P1\'s): kept from the game (it would pause)');
+  }, true);
   // F10 (testing with one controller): hand the first controller to the next player, P1 → P2 → P3 → P4 → P1.
   // The previous holder becomes a test rider (keeps moving); P1 goes keyboard + mouse while someone else has it.
   PL.controllerOwner = function () {
@@ -589,7 +608,7 @@
     // P1 clicked but others are still choosing
     if (cs.pending) {
       var waiting = pickers().filter(function (p) { return !p.charPick; }).map(function (p) { return p.name; }).join(', ');
-      html.push('<div style="position:absolute;left:' + (rect.left + 640 * k) + 'px;top:' + (rect.top + 440 * k) + 'px;transform:translateX(-50%);white-space:nowrap;font:900 ' + Math.round(16 * k) + 'px \'Arial Black\',Arial,sans-serif;color:#fff;-webkit-text-stroke:' + Math.max(1, Math.round(2 * k)) + 'px #13213d;paint-order:stroke fill">Waiting for ' + waiting + ' to pick' + (PL.p1Keyboard || LIST.some(function (p) { return p.joined && p.bot; }) ? ' (F10 passes the controller)' : '') + '</div>');
+      html.push('<div style="position:absolute;left:' + (rect.left + 640 * k) + 'px;top:' + (rect.top + 440 * k) + 'px;transform:translateX(-50%);white-space:nowrap;font:900 ' + Math.round(16 * k) + 'px \'Arial Black\',Arial,sans-serif;color:#fff;-webkit-text-stroke:' + Math.max(1, Math.round(2 * k)) + 'px #13213d;paint-order:stroke fill">Waiting for ' + waiting + ' to pick' + (LIST.some(function (p) { return p.joined && p.bot; }) ? ' (F10 passes the controller)' : '') + '</div>');
     }
     var out = html.join('');
     if (cs.ui.hwssHtml !== out) { cs.ui.hwssHtml = out; cs.ui.innerHTML = out; }
@@ -719,6 +738,7 @@
     try { updateVersionLabel(); } catch (e) { if (!mc.verErr) { mc.verErr = true; log('p2-error', 'version label: ' + (e && e.stack || e)); } }
     try { updateCsBackButton(); } catch (e) { if (!mc.backErr) { mc.backErr = true; log('p2-error', 'character select back button: ' + (e && e.stack || e)); } }
     try { updateCursorsCheckbox(); } catch (e) { if (!mc.cbErr) { mc.cbErr = true; log('p2-error', 'cursors checkbox: ' + (e && e.stack || e)); } }
+    try { updateP1KbCheckbox(); } catch (e) { if (!mc.kbErr) { mc.kbErr = true; log('p2-error', 'P1 keyboard checkbox: ' + (e && e.stack || e)); } }
     requestAnimationFrame(loop);
   })();
 
@@ -794,8 +814,7 @@
     if (e.code === 'F10') { e.preventDefault(); cycleController(); return; }
     if (e.code === 'F9') {
       e.preventDefault();
-      PL.p1Keyboard = !PL.p1Keyboard;
-      log('p2', 'P1 ' + (PL.p1Keyboard ? 'keyboard + mouse only (controllers can join as P2-P4)' : 'uses the first controller again'));
+      PL.setP1Keyboard(!PL.p1Keyboard);                  // saved, same as the main-menu checkbox
       return;
     }
     if (e.code === 'F8') {
@@ -1421,7 +1440,6 @@
     var lines = [];
     if (PL.atMainMenu && PL.autoRide) lines.push('Auto-Ride On: Everyone Full Throttle (F1 To Stop)');
     if (PL.atMainMenu && PL.p1Delay) lines.push('P1: Delay ' + PL.p1Delay + 's (F8 To Remove)');
-    if (PL.atMainMenu && PL.p1Keyboard) lines.push('P1: Keyboard + Mouse (F9 To Use A Controller)   Controller: ' + (PL.controllerOwner() ? 'P' + PL.controllerOwner() : 'none') + ' (F10)');
     if (PL.atMainMenu) {
       LIST.forEach(function (p) {
         // (no character name here any more: players pick on the character select screen; TheSplitScreenGuy's choice)
@@ -1488,7 +1506,7 @@
     if (monBtn.style.display !== 'block') monBtn.style.display = 'block';
   }
 
-  // ---------- "Happy Wheels Split Screen v1.0" on the main menu (TheSplitScreenGuy's request) ----------
+  // ---------- "Happy Wheels Split Screen v<version>" on the main menu (TheSplitScreenGuy's request) ----------
   // On the same line as the game's own version text ("v 1.99.3-s", bottom left), just to its right, in the
   // same font and size; display only. H.version comes from hwss.js.
   var verLabel = null, gameVer = null, gameVerAt = 0;
@@ -1513,7 +1531,7 @@
       verLabel.id = 'hwss-version';
       verLabel.style.cssText = 'position:fixed;z-index:2147483646;pointer-events:none;user-select:none;white-space:nowrap;' +
         'font-family:"Clarendon LT Std",Georgia,serif;font-weight:normal;color:#fff;line-height:1;';
-      verLabel.textContent = 'Happy Wheels Split Screen v' + (H.version || '1.0');
+      verLabel.textContent = 'Happy Wheels Split Screen v' + (H.version || '1.0.1');
       document.body.appendChild(verLabel);
     }
     // the game's text in 900x500 game coordinates (fallback: where it sits in 1.99.3)
@@ -1583,6 +1601,43 @@
     mc.synth = true;
     try { el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: x, clientY: y })); } finally { mc.synth = false; }
     return true;
+  }
+
+  // ---------- main menu checkbox: P1 on keyboard + mouse (TheSplitScreenGuy's request; saved; same as F9) ----------
+  // On: the game never sees a controller for P1, so EVERY controller can join (Start at the main menu) as
+  // P2, P3, P4. Shown with the Player Cursors box (a controller connected), just above it.
+  var kbBtn = null;
+  function updateP1KbCheckbox() {
+    var cur = document.getElementById('hwss-cursors-toggle');
+    var show = !!(PL.atMainMenuClean && H.renderer && cur && cur.style.display === 'block');
+    if (!show) { if (kbBtn) kbBtn.style.display = 'none'; return; }
+    if (!kbBtn) {
+      if (!document.body) return;
+      kbBtn = document.createElement('div');
+      kbBtn.id = 'hwss-p1kb-toggle';
+      kbBtn.setAttribute('data-hwss-btn', 'p1kb');
+      kbBtn.style.cssText = cur.style.cssText;
+      ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach(function (t) { kbBtn.addEventListener(t, function (e) { e.stopPropagation(); }, true); });
+      kbBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var now = performance.now();
+        if (kbBtn.hwssLast && now - kbBtn.hwssLast < 250) return;   // one press = one toggle
+        kbBtn.hwssLast = now;
+        PL.setP1Keyboard(!PL.p1Keyboard);
+      }, true);
+      kbBtn.addEventListener('mouseenter', function () { kbBtn.style.background = 'rgba(40,70,130,.9)'; });
+      kbBtn.addEventListener('mouseleave', function () { kbBtn.style.background = 'rgba(20,30,55,.78)'; });
+      document.body.appendChild(kbBtn);
+    }
+    var r = gameRect(), cr = cur.getBoundingClientRect(), fs = parseFloat(cur.style.fontSize) || Math.round(r.height * 0.032);
+    var pos = [Math.round(cr.left), Math.round(cr.top - cr.height - r.height * 0.015), fs].join(',');
+    if (kbBtn.hwssPos !== pos) {
+      kbBtn.hwssPos = pos;
+      kbBtn.style.left = pos.split(',')[0] + 'px'; kbBtn.style.top = pos.split(',')[1] + 'px'; kbBtn.style.fontSize = fs + 'px';
+    }
+    var text = (PL.p1Keyboard ? '☑' : '☐') + ' P1: Keyboard + Mouse';
+    if (kbBtn.textContent !== text) kbBtn.textContent = text;
+    if (kbBtn.style.display !== 'block') kbBtn.style.display = 'block';
   }
 
   // ---------- main menu checkbox: player cursors in menus on / off (TheSplitScreenGuy's request; saved, default on) ----------

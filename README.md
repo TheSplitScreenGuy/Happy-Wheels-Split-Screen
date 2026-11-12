@@ -156,6 +156,9 @@ other one shows whose screen it is. The same switch is on the main menu (bottom 
 
 ### On the main menu
 
+- **P1: Keyboard + Mouse** (checkbox, shown when a controller is connected): P1 plays with the keyboard and
+  mouse, and **every** controller can join as P2, P3, P4 (press Start at the main menu). Handy when you have
+  exactly one controller per extra player. Saved; F9 switches it too.
 - **Player Cursors** (checkbox, shown when a controller is connected): every joined player gets their own
   cursor in menus (stick / d-pad moves it, A clicks). Untick it to use the menus the normal way. The player who
   paused always gets a cursor on the pause menu, and everyone on the level-complete screen.
@@ -168,7 +171,7 @@ other one shows whose screen it is. The same switch is on the main menu (bottom 
 | F5 / F3 / F4 | Add or remove a test rider as P2 / P3 / P4 (copies P1's controls with a short delay; handy for trying things alone). |
 | F6 / F7 | Test rider P3 / P4 without the delay. |
 | F8 | Delay P1's own controls by 0.5 s. |
-| F9 | P1 uses keyboard + mouse only (every controller can join as P2–P4). |
+| F9 | P1 uses keyboard + mouse only (every controller can join as P2–P4); same as the main-menu checkbox, saved. |
 | F10 | Hand the controller to the next player (P1 › P2 › P3 › P4). |
 | F1 | Auto-ride on / off: every player rides full throttle with random leaning and A presses (for recording videos). |
 | F2 | Hide / show the hint text at the bottom of the main menu. |
